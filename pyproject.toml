@@ -1,0 +1,51 @@
+[project]
+name = "public-sector-copilot"
+version = "0.1.0"
+description = "Integration demo: an agent that triages public tenders and answers BOE questions with citations, built from four independent open-source components."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [{ name = "jorgitobg" }]
+dependencies = [
+  "agent-harness @ git+https://github.com/jorgitobg/agent-harness@58d9cf70c55c5582fca0f479ff9711064d20e8b0",
+  "llm-gateway @ git+https://github.com/jorgitobg/llm-gateway@61d268e51b989d213b7d8d2776523133a29da205",
+  "mcp-toolbox @ git+https://github.com/jorgitobg/mcp-toolbox@cc97b8473afd6dcd7e7c5484f45b78685488c7a8",
+  "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@ab3c93a0abe0f4aa8e2bb7ed14c37dabe7e6d174",
+  "mcp>=1.30",
+  "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "pytest-cov>=5", "ruff>=0.6", "pyright>=1.1.380"]
+
+[project.scripts]
+public-sector-copilot = "public_sector_copilot.demo:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/public_sector_copilot"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "BLE"]
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+# llm-gateway and sovereign-rag do not ship py.typed yet (tracked as a follow-up in those repos).
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+addopts = "-q --cov=public_sector_copilot --cov-report=term-missing --cov-fail-under=85"
+testpaths = ["tests"]
+asyncio_mode = "auto"
