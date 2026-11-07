@@ -112,12 +112,12 @@ Same tools, permissions and components; only the model is real. No operator is a
 What was observed on 2026-11-06, one free-tier model (`nvidia/nemotron-3.5-lightning:free`) through OpenRouter, a handful of runs:
 
 - It chose the tools on its own: `find_tenders` with the GO filter, then `ask_boe`, and reported the tender id and buyer correctly from the tool output.
-- **The BOE question came back as an abstention both times, so the report has no Torrox answer.** The first run asked in English. After the tool description was changed to say "Ask in Spanish", the model asked in Spanish ("puestos de subalterno") and still got no evidence, because the bundled retriever is lexical and the notice says "plazas", not "puestos". The agent reported the abstention honestly instead of inventing a number. The scripted demo works because its question uses the corpus wording.
+- **First pass, before the fix: the BOE question came back as an abstention both times**, so the report had no Torrox answer. The model asked "puestos de subalterno" and the bundled retriever is lexical, while the notice says "plazas". The agent reported the abstention honestly instead of inventing a number.
+- **That finding drove a change in `sovereign-rag`** (an explicit synonym table, measured there on a new paraphrase set). After pinning that commit here, the same command was run 3 more times: **3 of 3 answered "8 plazas" with the correct `boe.es` URL**, with slightly different wording of the question each time. Three runs of one free model is a smoke test, not a rate.
 - A second free model (`google/gemma-4-31b-it:free`) failed with a typed `model_error` before any tool call; I did not inspect the cause.
+- The recorded fixture is the **abstention run on purpose**: it is the replayable proof that the agent does not invent an answer when retrieval has no evidence. The successful runs were not recorded.
 
-So the live run shows the guardrails holding under a real model, and it also exposes a real weakness of lexical retrieval: synonyms. That is a finding, not a pass.
-
-The first run is recorded in `tests/fixtures/live_english_question_abstains.json` (no headers or credentials) and the tests replay it through the real components, asserting the requests equal the recorded ones. The Spanish run was not recorded. One free model on one day is an anecdote, not a benchmark.
+`tests/fixtures/live_english_question_abstains.json` (no headers or credentials) is replayed by the tests through the real components, asserting the requests equal the recorded ones. One free model on one day is an anecdote, not a benchmark.
 
 ## Using other models
 
