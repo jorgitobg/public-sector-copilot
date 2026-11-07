@@ -100,9 +100,28 @@ What to notice: the failed primary (`"unavailable"` then `"ok"`) is visible to t
 - **Simulated, on purpose:** the model that decides which tool to call is **scripted**, and the gateway's providers are offline stand-ins that return the first lines of the text (they do not summarize). This keeps the demo deterministic and keyless. It means the demo shows the **architecture and its guardrails, not model quality**.
 - The tender data is a recorded report over public TED/PLACSP notices screened against a **fictional** profile. The BOE notices are bundled public text. No private or client data is involved.
 
-## Using a real model
+## With a real model choosing the tools
 
-The components already support it individually: `agent-harness` has an OpenAI-compatible adapter (`python -m agent_harness.live`) and `llm-gateway` can chain a real OpenAI-compatible provider after the offline one. Wiring a live model into *this* demo is not done and is not claimed; see [docs/spec](docs/spec/0001-public-sector-copilot.md) for the follow-up.
+```bash
+COPILOT_API_KEY=... python -m public_sector_copilot.live \
+  --base-url https://openrouter.ai/api/v1 --model <model-name>
+```
+
+Same tools, permissions and components; only the model is real. No operator is attached, so `save_report` is refused and this run can read and answer, not save. The key comes from the environment only.
+
+What was observed on 2026-11-06, one free-tier model (`nvidia/nemotron-3.5-lightning:free`) through OpenRouter, a handful of runs:
+
+- It chose the tools on its own: `find_tenders` with the GO filter, then `ask_boe`, and reported the tender id and buyer correctly from the tool output.
+- **The BOE question came back as an abstention both times, so the report has no Torrox answer.** The first run asked in English. After the tool description was changed to say "Ask in Spanish", the model asked in Spanish ("puestos de subalterno") and still got no evidence, because the bundled retriever is lexical and the notice says "plazas", not "puestos". The agent reported the abstention honestly instead of inventing a number. The scripted demo works because its question uses the corpus wording.
+- A second free model (`google/gemma-4-31b-it:free`) failed with a typed `model_error` before any tool call; I did not inspect the cause.
+
+So the live run shows the guardrails holding under a real model, and it also exposes a real weakness of lexical retrieval: synonyms. That is a finding, not a pass.
+
+The first run is recorded in `tests/fixtures/live_english_question_abstains.json` (no headers or credentials) and the tests replay it through the real components, asserting the requests equal the recorded ones. The Spanish run was not recorded. One free model on one day is an anecdote, not a benchmark.
+
+## Using other models
+
+The components already support it individually: `agent-harness` has an OpenAI-compatible adapter (`python -m agent_harness.live`) and `llm-gateway` can chain a real OpenAI-compatible provider after the offline one. The live entry point above wires one in; the offline demo stays scripted.
 
 ## Development
 
@@ -116,7 +135,7 @@ CI runs those plus a check that the output above equals the real demo output, an
 ## Limits
 
 - Not a product and not for decisions: the verdicts come from a rule-based screen over a fictional profile.
-- The copilot's turns are scripted, so it will not adapt to a different task without changing the script.
+- The offline demo's turns are scripted, so it will not adapt to a different task without changing the script. The live entry point does adapt, subject to the retrieval weakness above.
 - Each MCP tool call starts a fresh server process. Fine for a demo, wasteful for production, where one long-lived session would be used.
 - Two dependencies do not ship type information yet, so strict typing stops at their boundary.
 
