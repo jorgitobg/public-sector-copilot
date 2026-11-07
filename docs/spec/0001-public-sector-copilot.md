@@ -14,7 +14,10 @@ Show that four separately published components compose into one agent without co
 ## Non-goals
 Model quality, latency or throughput measurement, a long-lived MCP session, a UI.
 
+## Done since the first version
+- **US7 live model.** `public_sector_copilot.live` runs the same tools with a real OpenAI-compatible model; a recorded real run is replayed in tests.
+
 ## Follow-ups (not done)
-1. Replace the scripted model with the harness OpenAI-compatible adapter and record a real run as a fixture.
+1. Retrieval that bridges synonyms (plazas / puestos), so the live run can answer the Torrox question; evaluate it before claiming it helps.
 2. Publish type information from `llm-gateway` and `sovereign-rag`.
 3. Reuse one MCP session across calls.

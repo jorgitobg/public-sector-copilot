@@ -81,7 +81,7 @@ class Copilot:
             self.summarize,
         )  # fmt: skip
         reg.register(
-            ToolSpec("ask_boe", "Answer from BOE notices, with citations or an abstention.",
+            ToolSpec("ask_boe", "BOE answers with citations, or abstains. Ask in Spanish.",
                      _schema(question={"type": "string", "maxLength": 300}), PermissionLevel.READ),
             self.ask_boe,
         )  # fmt: skip
