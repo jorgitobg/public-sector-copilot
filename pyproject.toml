@@ -8,9 +8,9 @@ requires-python = ">=3.12"
 authors = [{ name = "jorgitobg" }]
 dependencies = [
   "agent-harness @ git+https://github.com/jorgitobg/agent-harness@58d9cf70c55c5582fca0f479ff9711064d20e8b0",
-  "llm-gateway @ git+https://github.com/jorgitobg/llm-gateway@61d268e51b989d213b7d8d2776523133a29da205",
+  "llm-gateway @ git+https://github.com/jorgitobg/llm-gateway@2f88723852557fa4afac857181410590c09361ff",
   "mcp-toolbox @ git+https://github.com/jorgitobg/mcp-toolbox@cc97b8473afd6dcd7e7c5484f45b78685488c7a8",
-  "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@3a09a32c0ee1f2c5af9dc1b817418dd243fc12cc",
+  "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@a5ca64d56afe8deeadbbbf63e142aceeca826882",
   "mcp>=1.30",
   "httpx>=0.28",
 ]
@@ -42,8 +42,6 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "BLE"]
 include = ["src", "tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-# llm-gateway and sovereign-rag do not ship py.typed yet (tracked as a follow-up in those repos).
-reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
 addopts = "-q --cov=public_sector_copilot --cov-report=term-missing --cov-fail-under=85"
