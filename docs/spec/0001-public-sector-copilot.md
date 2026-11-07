@@ -19,5 +19,4 @@ Model quality, latency or throughput measurement, a long-lived MCP session, a UI
 
 ## Follow-ups (not done)
 1. Record a successful live run as a second fixture.
-2. Publish type information from `llm-gateway` and `sovereign-rag`.
-3. Reuse one MCP session across calls.
+2. Reuse one MCP session across calls.

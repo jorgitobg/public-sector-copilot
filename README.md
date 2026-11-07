@@ -137,7 +137,6 @@ CI runs those plus a check that the output above equals the real demo output, an
 - Not a product and not for decisions: the verdicts come from a rule-based screen over a fictional profile.
 - The offline demo's turns are scripted, so it will not adapt to a different task without changing the script. The live entry point does adapt, subject to the retrieval weakness above.
 - Each MCP tool call starts a fresh server process. Fine for a demo, wasteful for production, where one long-lived session would be used.
-- Two dependencies do not ship type information yet, so strict typing stops at their boundary.
 
 ## License
 
