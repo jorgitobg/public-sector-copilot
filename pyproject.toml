@@ -10,7 +10,7 @@ dependencies = [
   "agent-harness @ git+https://github.com/jorgitobg/agent-harness@58d9cf70c55c5582fca0f479ff9711064d20e8b0",
   "llm-gateway @ git+https://github.com/jorgitobg/llm-gateway@61d268e51b989d213b7d8d2776523133a29da205",
   "mcp-toolbox @ git+https://github.com/jorgitobg/mcp-toolbox@cc97b8473afd6dcd7e7c5484f45b78685488c7a8",
-  "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@ab3c93a0abe0f4aa8e2bb7ed14c37dabe7e6d174",
+  "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@3a09a32c0ee1f2c5af9dc1b817418dd243fc12cc",
   "mcp>=1.30",
   "httpx>=0.28",
 ]
