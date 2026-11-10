@@ -7,9 +7,9 @@ license = "Apache-2.0"
 requires-python = ">=3.12"
 authors = [{ name = "jorgitobg" }]
 dependencies = [
-  "agent-harness @ git+https://github.com/jorgitobg/agent-harness@58d9cf70c55c5582fca0f479ff9711064d20e8b0",
+  "agent-harness @ git+https://github.com/jorgitobg/agent-harness@bef0292be79f4f3337174aa035e397539e1994b6",
   "llm-gateway @ git+https://github.com/jorgitobg/llm-gateway@2f88723852557fa4afac857181410590c09361ff",
-  "mcp-toolbox @ git+https://github.com/jorgitobg/mcp-toolbox@cc97b8473afd6dcd7e7c5484f45b78685488c7a8",
+  "mcp-toolbox @ git+https://github.com/jorgitobg/mcp-toolbox@7ce166ee117eec3d5ae05b87f6db7975e3a6945a",
   "sovereign-rag @ git+https://github.com/jorgitobg/sovereign-rag@a5ca64d56afe8deeadbbbf63e142aceeca826882",
   "mcp>=1.30",
   "httpx>=0.28",
