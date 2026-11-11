@@ -87,12 +87,12 @@ agent -> save_report({"body": "GO: SOC tender. Torrox plazas (cited).", "title":
 
 confirmations asked: [('save_report', 'write')]
 stop_reason=final_answer steps=6
-final_answer='Finished: one GO tender, one cited BOE answer, one abstention.'
+final_answer="Partial completion: Finished: one GO tender, one cited BOE answer, one abstention. The report was not saved (operator refused tool 'save_report')."
 reports saved: []
 gateway provider calls: {'primary': 1, 'backup': 1}
 ```
 
-What to notice: the failed primary (`"unavailable"` then `"ok"`) is visible to the caller; the denied write leaves no report; the question outside the corpus abstains instead of inventing an answer.
+What to notice: the failed primary (`"unavailable"` then `"ok"`) is visible to the caller; the denied write leaves no report; the question outside the corpus abstains instead of inventing an answer. The run reports partial completion rather than claiming the report was saved. A refused or failed `save_report` makes the demo exit with status `1`; the approved save above exits `0`. The tender and BOE results remain available in the partial output.
 
 ## What is real and what is simulated
 

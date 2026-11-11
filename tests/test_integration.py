@@ -61,7 +61,27 @@ def test_denied_write_leaves_no_report_but_reads_still_happened() -> None:
     assert copilot.reports == {}
     last = [m.tool_result for m in result.transcript if m.tool_result][-1]
     assert last is not None and not last.ok and last.error_kind is not None
+    assert result.final_answer is not None
+    assert "report was not saved" in result.final_answer.lower()
+    assert "partial" in result.final_answer.lower()
+    assert "one cited BOE answer" in result.final_answer
     assert [p.calls for p in copilot.gateway.providers] == [1, 1]
+
+
+def test_save_exception_is_reported_as_partial_completion(monkeypatch: pytest.MonkeyPatch) -> None:
+    copilot = Copilot()
+
+    def fail_to_save(args: object) -> str:
+        raise OSError("report storage unavailable")
+
+    monkeypatch.setattr(copilot, "save_report", fail_to_save)
+    result, _ = run_copilot(copilot, approve=True)
+
+    assert copilot.reports == {}
+    assert result.final_answer is not None
+    assert "Partial completion" in result.final_answer
+    assert "report was not saved (OSError: report storage unavailable)" in result.final_answer
+    assert "one cited BOE answer" in result.final_answer
 
 
 def test_invalid_tool_arguments_are_rejected_before_any_component_is_called() -> None:
