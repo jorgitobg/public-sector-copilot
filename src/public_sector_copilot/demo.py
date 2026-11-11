@@ -34,7 +34,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"final_answer={result.final_answer!r}")
     print(f"reports saved: {sorted(copilot.reports)}")
     print(f"gateway provider calls: { {p.name: p.calls for p in copilot.gateway.providers} }")
-    return 0
+    save_failed = any(
+        message.tool_result is not None
+        and message.tool_result.name == "save_report"
+        and not message.tool_result.ok
+        for message in result.transcript
+    )
+    return 1 if save_failed else 0
 
 
 if __name__ == "__main__":

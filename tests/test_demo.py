@@ -12,9 +12,10 @@ def test_demo_default_run(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_demo_denied_with_failover(capsys: pytest.CaptureFixture[str]) -> None:
-    assert demo.main(["--deny", "--primary-down"]) == 0
+    assert demo.main(["--deny", "--primary-down"]) == 1
     out = capsys.readouterr().out
     assert "reports saved: []" in out and "REFUSED (denied)" in out
+    assert "Partial completion" in out and "report was not saved" in out
     assert "'primary': 1, 'backup': 1" in out and "served_by" in out
 
 

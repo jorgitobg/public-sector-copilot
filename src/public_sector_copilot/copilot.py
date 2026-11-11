@@ -8,7 +8,7 @@ reach the MCP server process, the retrieval pipeline and the gateway.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from agent_harness.adapters.confirmation import ScriptedConfirmation
@@ -124,4 +124,20 @@ def run_copilot(copilot: Copilot, *, approve: bool) -> tuple[AgentRun, ScriptedC
     loop = AgentLoop(
         ScriptedModel(scripted_turns()), registry, Budget(max_steps=8), dispatcher=guarded
     )
-    return loop.run(TASK), confirmation
+    result: AgentRun = loop.run(TASK)
+    save_result = next(
+        (
+            m.tool_result
+            for m in result.transcript
+            if m.tool_result is not None and m.tool_result.name == "save_report"
+        ),
+        None,
+    )
+    if save_result is not None and not save_result.ok and result.final_answer is not None:
+        final = (
+            f"Partial completion: {result.final_answer} "
+            f"The report was not saved ({save_result.error_message or save_result.error_kind})."
+        )
+        transcript = (*result.transcript[:-1], replace(result.transcript[-1], content=final))
+        result = replace(result, transcript=transcript, final_answer=final)
+    return result, confirmation
