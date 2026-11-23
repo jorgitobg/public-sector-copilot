@@ -136,7 +136,7 @@ CI runs those plus a check that the output above equals the real demo output, an
 
 - Not a product and not for decisions: the verdicts come from a rule-based screen over a fictional profile.
 - The offline demo's turns are scripted, so it will not adapt to a different task without changing the script. The live entry point does adapt, subject to the retrieval weakness above.
-- Each MCP tool call starts a fresh server process. Fine for a demo, wasteful for production, where one long-lived session would be used.
+- One run uses one MCP server process, started on the first tool call and stopped when the run ends (also on errors). The session is not shared between runs, there is no pool or reconnection if the server dies mid-run, and a production deployment would manage a long-lived session separately.
 
 ## License
 

@@ -13,13 +13,14 @@ def boe() -> BoeAnswers:
 
 
 def test_mcp_toolbox_is_reached_as_a_real_server_process() -> None:
-    data = McpToolbox().call("triage_tenders", {"verdict": "GO", "limit": 5})
+    with McpToolbox() as toolbox:
+        data = toolbox.call("triage_tenders", {"verdict": "GO", "limit": 5})
     assert data["count"] == 1 and data["tenders"][0]["verdict"] == "GO"
 
 
 def test_mcp_tool_errors_surface_as_exceptions() -> None:
-    with pytest.raises(RuntimeError, match="get_boe_document"):
-        McpToolbox().call("get_boe_document", {"doc_id": "does-not-exist"})
+    with McpToolbox() as toolbox, pytest.raises(RuntimeError, match="get_boe_document"):
+        toolbox.call("get_boe_document", {"doc_id": "does-not-exist"})
 
 
 def test_rag_answers_with_citation_and_abstains_without_evidence(boe: BoeAnswers) -> None:

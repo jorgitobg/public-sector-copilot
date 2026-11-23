@@ -67,6 +67,10 @@ class Copilot:
         self.reports[str(args["title"])] = str(args["body"])
         return f"saved report {args['title']!r}"
 
+    def close(self) -> None:
+        """Stop the MCP server process; safe to call repeatedly."""
+        self.toolbox.close()
+
     def registry(self) -> ToolRegistry:
         reg = ToolRegistry()
         reg.register(
@@ -118,13 +122,17 @@ def scripted_turns() -> list[ModelTurn]:
 
 
 def run_copilot(copilot: Copilot, *, approve: bool) -> tuple[AgentRun, ScriptedConfirmation]:
+    """Run the scripted task. The MCP server process lives for this run only."""
     registry = copilot.registry()
     confirmation = ScriptedConfirmation([approve])
     guarded = GuardedRegistry(registry, PermissionPolicy(), confirmation)
     loop = AgentLoop(
         ScriptedModel(scripted_turns()), registry, Budget(max_steps=8), dispatcher=guarded
     )
-    result: AgentRun = loop.run(TASK)
+    try:
+        result: AgentRun = loop.run(TASK)
+    finally:
+        copilot.close()
     save_result = next(
         (
             m.tool_result
