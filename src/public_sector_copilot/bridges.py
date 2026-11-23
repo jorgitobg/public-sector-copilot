@@ -4,16 +4,18 @@ Each component is reached the way a real deployment would reach it:
 - mcp-toolbox over MCP/stdio, as a separate server process spoken to by the official client;
 - sovereign-rag as a library (retrieval plus mandatory-citation answers);
 - llm-gateway over HTTP (in-process ASGI transport here, so no port is opened).
-The agent loop is synchronous, so each async call runs on its own short event loop.
+The agent loop is synchronous, so async calls run on a private event loop.
 """
 
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import json
 import logging
 import re
 import sys
+import threading
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,23 +35,108 @@ _TEXT = re.compile(r"<<<TEXT\n(.*?)\nTEXT>>>", re.DOTALL)
 
 
 class McpToolbox:
-    """Calls the real mcp-toolbox server process; one short session per call."""
+    """Calls the real mcp-toolbox server process over one long-lived stdio session.
+
+    The agent loop is synchronous, so the session lives on a private event loop in a helper
+    thread. The server process starts lazily on the first call, is reused by every later call
+    and is stopped by ``close()`` (or leaving the ``with`` block). A call after ``close()``
+    starts a fresh session.
+    """
+
+    def __init__(
+        self, params: StdioServerParameters | None = None, *, call_timeout_s: float = 60.0
+    ) -> None:
+        self._params = params or StdioServerParameters(
+            command=sys.executable, args=["-m", "mcp_toolbox"]
+        )
+        self.call_timeout_s = call_timeout_s
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._stop: asyncio.Event | None = None
+        self._session: ClientSession | None = None
+
+    def __enter__(self) -> McpToolbox:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     def call(self, tool: str, arguments: dict[str, Any]) -> Any:
-        return asyncio.run(self._call(tool, arguments))
-
-    async def _call(self, tool: str, arguments: dict[str, Any]) -> Any:
-        params = StdioServerParameters(command=sys.executable, args=["-m", "mcp_toolbox"])
-        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
-            await session.initialize()
-            result = await session.call_tool(tool, arguments)
-        # Raise after the transport context has closed: raising inside an anyio task group
-        # would wrap the error in an ExceptionGroup and hide its type from the agent loop.
+        # Calls and close() are serialised: close() waits for the call in flight (bounded by
+        # the timeout) and a call can never run on a session that is being torn down.
+        with self._lock:
+            session, loop = self._ensure_started()
+            future = asyncio.run_coroutine_threadsafe(session.call_tool(tool, arguments), loop)
+            try:
+                result = future.result(timeout=self.call_timeout_s)
+            except concurrent.futures.TimeoutError as error:
+                future.cancel()
+                raise RuntimeError(f"mcp tool {tool} timed out") from error
         first = result.content[0] if result.content else None
         text = str(getattr(first, "text", ""))
         if result.isError:
             raise RuntimeError(f"mcp tool {tool} failed: {text[:200]}")
         return json.loads(text)
+
+    def close(self) -> None:
+        with self._lock:
+            thread, loop, stop = self._thread, self._loop, self._stop
+            self._thread = self._loop = self._stop = self._session = None
+        if thread is None or loop is None or stop is None:
+            return
+        loop.call_soon_threadsafe(stop.set)
+        thread.join(timeout=15)
+
+    def _ensure_started(self) -> tuple[ClientSession, asyncio.AbstractEventLoop]:
+        if self._session is not None and self._loop is not None:
+            return self._session, self._loop
+        loop = asyncio.new_event_loop()
+        ready: concurrent.futures.Future[tuple[ClientSession, asyncio.Event]] = (
+            concurrent.futures.Future()
+        )
+        serve = loop.create_task(self._serve(ready))  # loop is not running yet: safe
+        thread = threading.Thread(
+            target=self._run, args=(loop, serve), name="mcp-toolbox-session", daemon=True
+        )
+        thread.start()
+        try:
+            session, stop = ready.result(timeout=self.call_timeout_s)
+        except BaseException:
+            # Startup failed or timed out: cancel the serving task so its process is stopped.
+            loop.call_soon_threadsafe(serve.cancel)
+            thread.join(timeout=15)
+            raise
+        self._thread, self._loop, self._stop, self._session = thread, loop, stop, session
+        return session, loop
+
+    @staticmethod
+    def _run(loop: asyncio.AbstractEventLoop, serve: asyncio.Task[None]) -> None:
+        try:
+            loop.run_until_complete(serve)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            loop.close()
+
+    async def _serve(
+        self, ready: concurrent.futures.Future[tuple[ClientSession, asyncio.Event]]
+    ) -> None:
+        # The transport and session contexts must be entered and left by this one task.
+        stop = asyncio.Event()
+        try:
+            async with (
+                stdio_client(self._params) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+                ready.set_result((session, stop))
+                await stop.wait()
+        except BaseException as error:
+            if not ready.done():
+                ready.set_exception(error)
+            elif not isinstance(error, Exception):
+                raise
 
 
 class BoeAnswers:
