@@ -63,14 +63,16 @@ class McpToolbox:
         self.close()
 
     def call(self, tool: str, arguments: dict[str, Any]) -> Any:
+        # Calls and close() are serialised: close() waits for the call in flight (bounded by
+        # the timeout) and a call can never run on a session that is being torn down.
         with self._lock:
             session, loop = self._ensure_started()
-        future = asyncio.run_coroutine_threadsafe(session.call_tool(tool, arguments), loop)
-        try:
-            result = future.result(timeout=self.call_timeout_s)
-        except concurrent.futures.TimeoutError as error:
-            future.cancel()
-            raise RuntimeError(f"mcp tool {tool} timed out") from error
+            future = asyncio.run_coroutine_threadsafe(session.call_tool(tool, arguments), loop)
+            try:
+                result = future.result(timeout=self.call_timeout_s)
+            except concurrent.futures.TimeoutError as error:
+                future.cancel()
+                raise RuntimeError(f"mcp tool {tool} timed out") from error
         first = result.content[0] if result.content else None
         text = str(getattr(first, "text", ""))
         if result.isError:
@@ -93,25 +95,27 @@ class McpToolbox:
         ready: concurrent.futures.Future[tuple[ClientSession, asyncio.Event]] = (
             concurrent.futures.Future()
         )
+        serve = loop.create_task(self._serve(ready))  # loop is not running yet: safe
         thread = threading.Thread(
-            target=self._run, args=(loop, ready), name="mcp-toolbox-session", daemon=True
+            target=self._run, args=(loop, serve), name="mcp-toolbox-session", daemon=True
         )
         thread.start()
         try:
             session, stop = ready.result(timeout=self.call_timeout_s)
         except BaseException:
+            # Startup failed or timed out: cancel the serving task so its process is stopped.
+            loop.call_soon_threadsafe(serve.cancel)
             thread.join(timeout=15)
             raise
         self._thread, self._loop, self._stop, self._session = thread, loop, stop, session
         return session, loop
 
-    def _run(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        ready: concurrent.futures.Future[tuple[ClientSession, asyncio.Event]],
-    ) -> None:
+    @staticmethod
+    def _run(loop: asyncio.AbstractEventLoop, serve: asyncio.Task[None]) -> None:
         try:
-            loop.run_until_complete(self._serve(ready))
+            loop.run_until_complete(serve)
+        except asyncio.CancelledError:
+            pass
         finally:
             loop.close()
 

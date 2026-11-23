@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -164,3 +165,51 @@ def test_a_call_that_exceeds_its_timeout_is_reported(tmp_path: Path) -> None:
         toolbox.call_timeout_s = 0.0
         with pytest.raises(RuntimeError, match="timed out"):
             toolbox.call("triage_tenders", {"verdict": "GO", "limit": 1})
+
+
+def test_startup_timeout_stops_the_process_and_the_thread(tmp_path: Path) -> None:
+    pid_file = tmp_path / "pids"
+    slow = StdioServerParameters(
+        command=sys.executable,
+        args=[
+            "-c",
+            "import os, sys, time;"
+            "open(sys.argv[1], 'a').write(str(os.getpid()) + '\\n');"
+            "time.sleep(60)",
+            str(pid_file),
+        ],
+    )
+    toolbox = McpToolbox(slow, call_timeout_s=1.0)
+    before = set(threading.enumerate())
+    with pytest.raises(Exception):  # noqa: B017 - timeout type comes from concurrent.futures
+        toolbox.call("triage_tenders", {"verdict": "GO", "limit": 1})
+    assert wait_gone(pids(pid_file)[0], seconds=10.0)
+    started = [t for t in threading.enumerate() if t not in before]
+    for thread in started:
+        thread.join(timeout=10)
+    assert not [t for t in started if t.is_alive()]
+
+
+def test_close_during_concurrent_calls_never_breaks_a_call(tmp_path: Path) -> None:
+    pid_file = tmp_path / "pids"
+    toolbox = McpToolbox(recording(pid_file))
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            for _ in range(5):
+                assert toolbox.call("triage_tenders", {"verdict": "GO", "limit": 1})["count"] == 1
+        except BaseException as error:  # noqa: BLE001 - collected and asserted below
+            errors.append(error)
+
+    threads = [threading.Thread(target=worker) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for _ in range(3):
+        toolbox.close()
+        time.sleep(0.05)
+    for thread in threads:
+        thread.join(timeout=60)
+    toolbox.close()
+    assert errors == []
+    assert all(wait_gone(pid) for pid in pids(pid_file))
